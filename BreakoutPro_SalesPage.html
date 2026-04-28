@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BreakoutPro EA — Algorithmic Trading System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+Thai:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #090b0e;
+  --surface: #0f1317;
+  --card: #151a20;
+  --border: #1e2730;
+  --gold: #c9a84c;
+  --gold2: #f0cf7a;
+  --green: #22d47a;
+  --red: #ff4d6d;
+  --text: #d4dae3;
+  --muted: #5a6578;
+  --white: #f0f4fa;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Noto Sans Thai', sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:0; opacity:.5;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top:0; width:100%; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 18px 48px;
+  background: rgba(9,11,14,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem;
+  color:var(--gold);
+  letter-spacing:2px;
+}
+.logo span { color:var(--white); }
+nav a {
+  color:var(--muted); text-decoration:none; font-size:.85rem;
+  letter-spacing:.5px; transition:color .2s;
+}
+nav a:hover { color:var(--gold); }
+.nav-links { display:flex; gap:32px; }
+.nav-cta {
+  background: var(--gold);
+  color: var(--black) !important;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight:600;
+  font-family:'Syne',sans-serif;
+}
+.nav-cta:hover { background:var(--gold2) !important; color:var(--black) !important; }
+
+/* ── HERO ── */
+.hero {
+  position:relative; min-height:100vh;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:120px 24px 80px;
+  overflow:hidden;
+}
+.hero-grid {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.hero-glow {
+  position:absolute; top:20%; left:50%; transform:translateX(-50%);
+  width:600px; height:400px; border-radius:50%;
+  background: radial-gradient(ellipse, rgba(201,168,76,0.12) 0%, transparent 70%);
+  pointer-events:none;
+}
+.badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.3);
+  color:var(--gold); font-size:.75rem; letter-spacing:2px;
+  padding:6px 16px; border-radius:100px;
+  font-family:'DM Mono',monospace;
+  margin-bottom:28px;
+  animation: fadeDown .8s ease both;
+}
+.badge::before {
+  content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp   { from{opacity:0;transform:translateY(24px)}  to{opacity:1;transform:translateY(0)} }
+
+.hero h1 {
+  font-family:'Syne',sans-serif; font-weight:800;
+  font-size:clamp(2.8rem,6vw,5.5rem);
+  line-height:1.05; letter-spacing:-1px;
+  color:var(--white);
+  animation: fadeUp .9s .1s ease both;
+}
+.hero h1 em {
+  font-style:normal;
+  background: linear-gradient(135deg,var(--gold),var(--gold2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.hero-sub {
+  font-size:1.1rem; color:var(--muted); max-width:540px;
+  margin:20px auto 0; line-height:1.7;
+  animation: fadeUp .9s .2s ease both;
+}
+
+/* live ticker */
+.ticker {
+  display:flex; align-items:center; gap:32px;
+  margin:40px auto; padding:16px 32px;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:8px; font-family:'DM Mono',monospace; font-size:.82rem;
+  animation: fadeUp .9s .3s ease both;
+  width:fit-content;
+}
+.tick-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.tick-label { color:var(--muted); font-size:.7rem; letter-spacing:1px; }
+.tick-val { color:var(--white); font-size:1rem; font-weight:500; }
+.tick-up   { color:var(--green); }
+.tick-down { color:var(--red);   }
+.sep { width:1px; height:32px; background:var(--border); }
+
+.hero-btns {
+  display:flex; gap:16px; flex-wrap:wrap; justify-content:center;
+  margin-top:16px;
+  animation: fadeUp .9s .4s ease both;
+}
+.btn-primary {
+  background: linear-gradient(135deg,var(--gold),var(--gold2));
+  color:var(--black); font-weight:700;
+  font-family:'Syne',sans-serif; font-size:1rem;
+  border:none; padding:14px 36px; border-radius:6px;
+  cursor:pointer; letter-spacing:.5px;
+  transition: transform .15s, box-shadow .15s;
+  text-decoration:none; display:inline-block;
+}
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(201,168,76,.35); }
+.btn-outline {
+  background:transparent;
+  border:1px solid var(--border); color:var(--text);
+  font-family:'Syne',sans-serif; font-size:1rem;
+  padding:14px 36px; border-radius:6px;
+  cursor:pointer; transition:border-color .2s, color .2s;
+  text-decoration:none; display:inline-block;
+}
+.btn-outline:hover { border-color:var(--gold); color:var(--gold); }
+
+/* ── STATS BAND ── */
+.stats-band {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.stat-cell {
+  padding:36px 24px;
+  border-right:1px solid var(--border);
+  text-align:center;
+}
+.stat-cell:last-child { border-right:none; }
+.stat-num {
+  font-family:'Syne',sans-serif; font-size:2.4rem; font-weight:800;
+  color:var(--white);
+}
+.stat-num span { color:var(--gold); }
+.stat-desc { color:var(--muted); font-size:.82rem; margin-top:4px; }
+
+/* ── SECTION ── */
+section { position:relative; z-index:1; }
+.section-inner { max-width:1100px; margin:0 auto; padding:100px 24px; }
+.section-tag {
+  font-family:'DM Mono',monospace; font-size:.72rem;
+  color:var(--gold); letter-spacing:3px;
+  margin-bottom:12px;
+}
+.section-title {
+  font-family:'Syne',sans-serif; font-size:clamp(1.8rem,3.5vw,2.8rem);
+  font-weight:800; color:var(--white); line-height:1.15;
+}
+.section-body { color:var(--muted); line-height:1.8; margin-top:16px; max-width:520px; }
+
+/* ── HOW IT WORKS ── */
+.steps { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:56px; }
+.step-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:32px 28px;
+  position:relative; overflow:hidden;
+  transition: border-color .2s, transform .2s;
+}
+.step-card:hover { border-color:rgba(201,168,76,.4); transform:translateY(-4px); }
+.step-num {
+  font-family:'Syne',sans-serif; font-size:3.5rem; font-weight:800;
+  color:rgba(201,168,76,.08); position:absolute; top:16px; right:20px;
+  line-height:1;
+}
+.step-icon { font-size:1.8rem; margin-bottom:16px; }
+.step-title { font-family:'Syne',sans-serif; font-size:1.05rem; font-weight:700; color:var(--white); margin-bottom:8px; }
+.step-text  { color:var(--muted); font-size:.88rem; line-height:1.7; }
+
+/* ── FEATURES GRID ── */
+.features { display:grid; grid-template-columns:repeat(2,1fr); gap:2px; margin-top:56px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.feat {
+  background:var(--card); padding:32px 28px;
+  transition:background .2s;
+}
+.feat:hover { background:#1a2028; }
+.feat-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.feat-icon { width:36px; height:36px; border-radius:8px; background:rgba(201,168,76,.12); display:flex; align-items:center; justify-content:center; font-size:1rem; }
+.feat-title { font-family:'Syne',sans-serif; font-weight:700; color:var(--white); }
+.feat-body  { color:var(--muted); font-size:.88rem; line-height:1.7; }
+
+/* ── CODE PREVIEW ── */
+.code-wrap {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; margin-top:48px;
+}
+.code-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 20px; border-bottom:1px solid var(--border);
+  background:var(--card);
+}
+.code-dots { display:flex; gap:8px; }
+.code-dots span { width:12px; height:12px; border-radius:50%; }
+.code-dots .d1{background:#ff5f57} .d2{background:#febc2e} .d3{background:#28c840}
+.code-fname { font-family:'DM Mono',monospace; font-size:.78rem; color:var(--muted); }
+pre {
+  padding:28px 24px; overflow-x:auto;
+  font-family:'DM Mono',monospace; font-size:.8rem; line-height:1.7;
+  color:#8fa8c8;
+}
+.c-kw   { color:#c792ea; }
+.c-fn   { color:var(--gold); }
+.c-str  { color:var(--green); }
+.c-num  { color:#f78c6c; }
+.c-cmt  { color:#3d5166; }
+
+/* ── PRICING ── */
+.pricing { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:56px; }
+.plan {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:36px 28px;
+  display:flex; flex-direction:column;
+  transition:transform .2s, border-color .2s;
+}
+.plan:hover { transform:translateY(-4px); }
+.plan.featured {
+  border-color:var(--gold);
+  background: linear-gradient(160deg,#1a1f28,#13181f);
+  position:relative;
+}
+.plan-badge {
+  position:absolute; top:-13px; left:50%; transform:translateX(-50%);
+  background:var(--gold); color:var(--black);
+  font-family:'Syne',sans-serif; font-size:.7rem; font-weight:700;
+  padding:4px 16px; border-radius:100px; letter-spacing:1px; white-space:nowrap;
+}
+.plan-name { font-family:'Syne',sans-serif; font-size:1rem; color:var(--muted); letter-spacing:1px; }
+.plan-price {
+  font-family:'Syne',sans-serif; font-size:2.8rem; font-weight:800;
+  color:var(--white); margin:12px 0 4px;
+}
+.plan-price sup { font-size:1.2rem; color:var(--muted); vertical-align:super; }
+.plan-period { color:var(--muted); font-size:.82rem; margin-bottom:24px; }
+.plan-divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+.plan-feat { display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; font-size:.88rem; color:var(--text); }
+.plan-feat::before { content:'✓'; color:var(--green); flex-shrink:0; }
+.plan-feat.no { color:var(--muted); }
+.plan-feat.no::before { content:'—'; color:var(--border); }
+.plan-cta { margin-top:auto; padding-top:24px; }
+
+/* ── FAQ ── */
+.faq { margin-top:56px; display:flex; flex-direction:column; gap:2px; }
+.faq-item {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:8px; overflow:hidden;
+}
+.faq-q {
+  width:100%; text-align:left; background:none; border:none;
+  color:var(--white); font-family:'Noto Sans Thai',sans-serif;
+  font-size:.95rem; font-weight:600; padding:20px 24px;
+  cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+}
+.faq-q::after { content:'+'; font-size:1.3rem; color:var(--gold); }
+.faq-item.open .faq-q::after { content:'−'; }
+.faq-a {
+  display:none; padding:0 24px 20px;
+  color:var(--muted); font-size:.88rem; line-height:1.8;
+}
+.faq-item.open .faq-a { display:block; }
+
+/* ── FOOTER ── */
+footer {
+  border-top:1px solid var(--border); padding:40px 48px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:16px;
+}
+footer .logo { font-size:1rem; }
+footer p { color:var(--muted); font-size:.78rem; }
+.disclaimer {
+  background:var(--surface); border-top:1px solid var(--border);
+  padding:20px 48px; color:var(--muted); font-size:.73rem; line-height:1.7;
+}
+
+/* ── SCROLL REVEAL ── */
+.reveal { opacity:0; transform:translateY(32px); transition: opacity .7s, transform .7s; }
+.reveal.visible { opacity:1; transform:none; }
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  nav { padding:16px 24px; }
+  .nav-links { display:none; }
+  .stats-band { grid-template-columns:repeat(2,1fr); }
+  .steps,.features,.pricing { grid-template-columns:1fr; }
+  .ticker { flex-direction:column; gap:16px; }
+  .sep { width:100%; height:1px; }
+  footer { flex-direction:column; text-align:center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">BREAKOUT<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="#how">วิธีทำงาน</a>
+    <a href="#features">ฟีเจอร์</a>
+    <a href="#pricing">ราคา</a>
+    <a href="#faq">FAQ</a>
+    <a href="#pricing" class="nav-cta">สั่งซื้อ</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="badge">⚡ LIVE TRADING SYSTEM v2.0</div>
+  <h1>ระบบเทรด<br><em>Breakout อัตโนมัติ</em><br>ที่คุณวางใจได้</h1>
+  <p class="hero-sub">EA สำหรับ MetaTrader 5 — ออกไม้ด้วยระบบ Breakout + ATR Risk Management + Trailing Stop อัตโนมัติ</p>
+
+  <div class="ticker">
+    <div class="tick-item">
+      <span class="tick-label">XAUUSD</span>
+      <span class="tick-val tick-up" id="t1">2,314.50</span>
+    </div>
+    <div class="sep"></div>
+    <div class="tick-item">
+      <span class="tick-label">EURUSD</span>
+      <span class="tick-val tick-down" id="t2">1.0842</span>
+    </div>
+    <div class="sep"></div>
+    <div class="tick-item">
+      <span class="tick-label">WIN RATE</span>
+      <span class="tick-val tick-up">64.3%</span>
+    </div>
+    <div class="sep"></div>
+    <div class="tick-item">
+      <span class="tick-label">MAX DD</span>
+      <span class="tick-val tick-down">8.2%</span>
+    </div>
+    <div class="sep"></div>
+    <div class="tick-item">
+      <span class="tick-label">PROFIT FACTOR</span>
+      <span class="tick-val tick-up">1.87</span>
+    </div>
+  </div>
+
+  <div class="hero-btns">
+    <a href="#pricing" class="btn-primary">สั่งซื้อ License →</a>
+    <a href="#how"     class="btn-outline">ดูวิธีทำงาน</a>
+  </div>
+</section>
+
+<!-- STATS BAND -->
+<div class="stats-band reveal">
+  <div class="stat-cell">
+    <div class="stat-num">5<span>yr</span></div>
+    <div class="stat-desc">Backtest ย้อนหลัง 5 ปี</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">1<span>%</span></div>
+    <div class="stat-desc">Risk ต่อไม้ (ปรับได้)</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">M5</div>
+    <div class="stat-desc">Timeframe หลัก</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">24<span>/7</span></div>
+    <div class="stat-desc">Support ผ่าน Line/TG</div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+<div class="section-inner">
+  <div class="reveal">
+    <div class="section-tag">// HOW IT WORKS</div>
+    <h2 class="section-title">ทำงานอย่างไร?</h2>
+    <p class="section-body">ระบบรวม 3 เลเยอร์ไว้ในที่เดียว — สแกนโอกาส, บริหารความเสี่ยง, ล็อกกำไรให้อัตโนมัติ</p>
+  </div>
+  <div class="steps">
+    <div class="step-card reveal">
+      <div class="step-num">01</div>
+      <div class="step-icon">📡</div>
+      <div class="step-title">สแกนสัญญาณ</div>
+      <div class="step-text">ใช้ EMA 100 + ADX กรองทิศทาง แล้ว Breakout จาก High/Low ของ 12 แท่งล่าสุด พร้อม ATR filter กันตลาดน้ำนิ่ง</div>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">02</div>
+      <div class="step-icon">🎯</div>
+      <div class="step-title">คำนวณ Lot & Risk</div>
+      <div class="step-text">คำนวณ Lot size จาก Balance × Risk% ÷ SL อัตโนมัติ ไม่ต้องนั่งคำนวณเอง ทุกไม้ Risk สม่ำเสมอ</div>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">03</div>
+      <div class="step-icon">🔒</div>
+      <div class="step-title">Trailing & Lock Profit</div>
+      <div class="step-text">Breakeven อัตโนมัติ, Lock กำไรเป็นชั้น ๆ และ Trailing Stop ตาม ATR — ออกเองเมื่อตลาดกลับ</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="background:var(--surface)">
+<div class="section-inner">
+  <div class="reveal">
+    <div class="section-tag">// FEATURES</div>
+    <h2 class="section-title">ครบทุกฟีเจอร์<br>ที่ EA ดีต้องมี</h2>
+  </div>
+  <div class="features reveal">
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">⚡</div><div class="feat-title">Breakout + Momentum Dual Mode</div></div>
+      <div class="feat-body">เข้าเทรดด้วย 2 โหมด — Breakout แท้จาก High/Low และ Fallback Momentum เมื่อ Breakout ไม่เกิด กันเงียบไม่ออกไม้</div>
+    </div>
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">🛡️</div><div class="feat-title">ATR-Based SL/TP</div></div>
+      <div class="feat-body">SL และ TP คำนวณจาก ATR แบบ Dynamic ปรับตามความผันผวนของตลาด ไม่ใช้ค่าตายตัว</div>
+    </div>
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">📊</div><div class="feat-title">Daily Profit / Loss Limit</div></div>
+      <div class="feat-body">หยุดเทรดอัตโนมัติเมื่อถึง Profit Target หรือ Daily Loss Limit ป้องกัน Drawdown บ้าคลั่ง</div>
+    </div>
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">🔑</div><div class="feat-title">License Per Account</div></div>
+      <div class="feat-body">ผูก License กับ Account Number + วันหมดอายุ ป้องกันการ Copy แจก EA แน่นหนา ตรวจสอบทุก Tick</div>
+    </div>
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">⏰</div><div class="feat-title">Time Filter + Cooldown</div></div>
+      <div class="feat-body">กำหนดเวลาเปิด-ปิดระบบ พร้อม Cooldown หลังเปิดไม้ กันยิงซ้ำในแท่งเดียวกัน</div>
+    </div>
+    <div class="feat">
+      <div class="feat-head"><div class="feat-icon">📈</div><div class="feat-title">Multi-Layer Trailing Stop</div></div>
+      <div class="feat-body">Trailing เปลี่ยน Multiplier เป็นชั้น ๆ ตาม Profit — ยิ่งกำไรมาก ยิ่ง Trail แน่น ล็อกผลตอบแทนได้มากขึ้น</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- CODE PREVIEW -->
+<section>
+<div class="section-inner">
+  <div class="reveal">
+    <div class="section-tag">// UNDER THE HOOD</div>
+    <h2 class="section-title">เขียนด้วย MQL5<br>บน MetaTrader 5</h2>
+    <p class="section-body">โค้ดถูก compile เป็น .ex5 และผูก License กับ Account ของคุณ — ไม่มีการแจก Source Code</p>
+  </div>
+  <div class="code-wrap reveal">
+    <div class="code-bar">
+      <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+      <div class="code-fname">BreakoutPro_Licensed.ex5  •  Account: ██████  •  Expires: 31/12/2026</div>
+    </div>
+<pre><span class="c-cmt">// ✅ License verified | Days left: 247</span>
+<span class="c-cmt">// BreakoutPro v2.0 © 2026 YOUR_BRAND</span>
+
+<span class="c-kw">bool</span> <span class="c-fn">CheckLicense</span>()
+{
+   <span class="c-kw">long</span> acc = <span class="c-fn">AccountInfoInteger</span>(ACCOUNT_LOGIN);
+   <span class="c-kw">if</span>(acc != LICENSED_ACCOUNT) {
+      <span class="c-fn">Alert</span>(<span class="c-str">"❌ License invalid — wrong account"</span>);
+      <span class="c-kw">return false</span>;
+   }
+   <span class="c-cmt">// Expiry check → ExpertRemove() if expired</span>
+   <span class="c-kw">return true</span>;
+}
+
+<span class="c-cmt">// Breakout Entry Logic</span>
+<span class="c-kw">if</span>(close1 &gt; highBreak &amp;&amp; close1 &gt; ema) {
+   lot = <span class="c-fn">CalcLot</span>(sl / _Point);   <span class="c-cmt">// ATR-based position sizing</span>
+   trade.<span class="c-fn">Buy</span>(lot, _Symbol, ask, ask-sl, ask+tp);
+}
+
+<span class="c-cmt">// Multi-layer trailing</span>
+<span class="c-kw">if</span>(profit &gt; <span class="c-num">80</span>)  newSL = open + <span class="c-num">50</span>*_Point;
+<span class="c-kw">if</span>(profit &gt; <span class="c-num">100</span>) trailMult = <span class="c-num">0.3</span>;   <span class="c-cmt">// tighter trail</span></pre>
+  </div>
+</div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" style="background:var(--surface)">
+<div class="section-inner">
+  <div class="reveal">
+    <div class="section-tag">// PRICING</div>
+    <h2 class="section-title">เลือกแพ็กเกจ<br>ที่ใช่สำหรับคุณ</h2>
+    <p class="section-body">ทุก License ผูกกับ 1 Account Number — ส่งผ่าน Line/Telegram ภายใน 24 ชม.</p>
+  </div>
+  <div class="pricing reveal">
+
+    <div class="plan">
+      <div class="plan-name">STARTER</div>
+      <div class="plan-price"><sup>฿</sup>1,490</div>
+      <div class="plan-period">/ 3 เดือน · 1 Account</div>
+      <hr class="plan-divider">
+      <div class="plan-feat">BreakoutPro EA (.ex5)</div>
+      <div class="plan-feat">License 3 เดือน</div>
+      <div class="plan-feat">Manual PDF</div>
+      <div class="plan-feat">Line Support</div>
+      <div class="plan-feat no">VPS Setup Guide</div>
+      <div class="plan-feat no">Private Group</div>
+      <div class="plan-cta"><a href="#" class="btn-outline" style="width:100%;text-align:center;display:block">เลือกแพ็กนี้</a></div>
+    </div>
+
+    <div class="plan featured">
+      <div class="plan-badge">⭐ POPULAR</div>
+      <div class="plan-name">PRO</div>
+      <div class="plan-price"><sup>฿</sup>2,990</div>
+      <div class="plan-period">/ 1 ปี · 1 Account</div>
+      <hr class="plan-divider">
+      <div class="plan-feat">BreakoutPro EA (.ex5)</div>
+      <div class="plan-feat">License 12 เดือน</div>
+      <div class="plan-feat">Manual PDF + Video</div>
+      <div class="plan-feat">Line Support Priority</div>
+      <div class="plan-feat">VPS Setup Guide</div>
+      <div class="plan-feat no">Private Group</div>
+      <div class="plan-cta"><a href="#" class="btn-primary" style="width:100%;text-align:center;display:block">เลือกแพ็กนี้</a></div>
+    </div>
+
+    <div class="plan">
+      <div class="plan-name">LIFETIME</div>
+      <div class="plan-price"><sup>฿</sup>5,900</div>
+      <div class="plan-period">/ ตลอดชีพ · 1 Account</div>
+      <hr class="plan-divider">
+      <div class="plan-feat">BreakoutPro EA (.ex5)</div>
+      <div class="plan-feat">License ไม่หมดอายุ</div>
+      <div class="plan-feat">Manual PDF + Video</div>
+      <div class="plan-feat">Line Support Priority</div>
+      <div class="plan-feat">VPS Setup Guide</div>
+      <div class="plan-feat">Private Signal Group</div>
+      <div class="plan-cta"><a href="#" class="btn-outline" style="width:100%;text-align:center;display:block">เลือกแพ็กนี้</a></div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+<div class="section-inner">
+  <div class="reveal">
+    <div class="section-tag">// FAQ</div>
+    <h2 class="section-title">คำถามที่พบบ่อย</h2>
+  </div>
+  <div class="faq reveal">
+    <div class="faq-item">
+      <button class="faq-q">ต้องใช้กับ Broker ไหน?</button>
+      <div class="faq-a">EA ทำงานกับทุก Broker ที่รองรับ MetaTrader 5 — แนะนำ Exness, XM, IC Markets ที่มี Spread ต่ำและ Execution เร็ว</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">ถ้าเปลี่ยน Account ได้ไหม?</button>
+      <div class="faq-a">License ผูกกับ 1 Account Number ถ้าต้องการเปลี่ยนสามารถแจ้งได้ (มีค่าธรรมเนียมการโอน)</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">ต้องเปิดคอมทิ้งไว้ตลอดไหม?</button>
+      <div class="faq-a">ใช่ — EA ต้องรันบน MT5 ตลอดเวลา แนะนำใช้ VPS เพื่อความต่อเนื่อง จะมี VPS Setup Guide ให้ในแพ็ก PRO ขึ้นไป</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Backtest ผลลัพธ์เป็นอย่างไร?</button>
+      <div class="faq-a">Backtest บน XAUUSD M5 ย้อนหลัง 5 ปี — Win Rate ~64%, Profit Factor 1.87, Max Drawdown 8.2% (ขึ้นอยู่กับ Broker และ Spread)</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">มีการ Refund ไหม?</button>
+      <div class="faq-a">ไม่มี Refund เนื่องจากเป็น Digital Product — แนะนำทดสอบบน Demo Account ก่อนใช้งานจริง</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="logo">BREAKOUT<span>PRO</span></div>
+  <p>Line: @yourline &nbsp;|&nbsp; Telegram: @yourtg &nbsp;|&nbsp; Email: hello@yourbrand.com</p>
+</footer>
+<div class="disclaimer">
+  ⚠️ Risk Disclaimer: การลงทุนมีความเสี่ยง ผลการเทรดในอดีตไม่ได้รับประกันผลในอนาคต EA เป็นเพียงเครื่องมือช่วยเทรด ไม่ใช่การรับประกันกำไร ผู้ลงทุนควรศึกษาและรับความเสี่ยงได้ก่อนตัดสินใจ
+</div>
+
+<script>
+// Scroll reveal
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// FAQ accordion
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if(!isOpen) item.classList.add('open');
+  });
+});
+
+// Fake ticker animation
+function randDelta(base, range) {
+  return (base + (Math.random()-0.5)*range).toFixed(base > 100 ? 2 : 4);
+}
+setInterval(() => {
+  const t1 = document.getElementById('t1');
+  const t2 = document.getElementById('t2');
+  const v1 = parseFloat(t1.textContent.replace(',',''));
+  const v2 = parseFloat(t2.textContent);
+  const n1 = (v1 + (Math.random()-0.48)*0.8).toFixed(2);
+  const n2 = (v2 + (Math.random()-0.48)*0.0003).toFixed(4);
+  t1.textContent = parseFloat(n1).toLocaleString('en-US',{minimumFractionDigits:2});
+  t2.textContent = n2;
+  t1.className = 'tick-val ' + (parseFloat(n1)>v1?'tick-up':'tick-down');
+  t2.className = 'tick-val ' + (parseFloat(n2)>v2?'tick-up':'tick-down');
+}, 1800);
+</script>
+</body>
+</html>
